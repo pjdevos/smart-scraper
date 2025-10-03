@@ -52,11 +52,18 @@ class SmartExtractor:
             response = self.claude.find_selectors(html, query, url)
 
             if not response or 'selectors' not in response:
-                logger.error("LLM did not return selectors")
+                error_detail = "No response from Claude API"
+                if not response:
+                    error_detail = "API returned None - check your ANTHROPIC_API_KEY in .env file"
+                else:
+                    error_detail = "API response missing selectors - check API key validity"
+
+                logger.error(f"LLM did not return selectors: {error_detail}")
                 return {
                     'selectors': {},
                     'data': [],
-                    'cost': 0.0
+                    'cost': 0.0,
+                    'error': error_detail
                 }
 
             selectors = response['selectors']
@@ -78,7 +85,8 @@ class SmartExtractor:
             return {
                 'selectors': {},
                 'data': [],
-                'cost': 0.0
+                'cost': 0.0,
+                'error': str(e)
             }
 
     def _extract_with_selectors(

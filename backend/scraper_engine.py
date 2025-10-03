@@ -322,13 +322,20 @@ class ScraperEngine:
         extraction_result = self.smart_extractor.extract(html, query, url)
 
         if not extraction_result or not extraction_result.get("data"):
+            error_msg = "LLM extraction failed"
+            if extraction_result and "error" in extraction_result:
+                error_msg = f"LLM extraction failed: {extraction_result['error']}"
+            elif not extraction_result:
+                error_msg = "LLM extraction failed: No response from API (check API key in .env file)"
+
+            logger.error(error_msg)
             return {
                 "success": False,
                 "data": [],
                 "cost": extraction_result.get("cost", 0.0) if extraction_result else 0.0,
                 "method_used": "llm_failed",
                 "cached": False,
-                "message": "LLM extraction failed"
+                "message": error_msg
             }
 
         selectors = extraction_result["selectors"]
