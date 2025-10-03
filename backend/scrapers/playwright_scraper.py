@@ -55,17 +55,50 @@ class PlaywrightScraper(BaseScraper):
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
-                    '--disable-blink-features=AutomationControlled'
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process'
                 ]
             )
 
             logger.info(f"Fetching {url} with Playwright")
 
-            # Create new page
-            page = browser.new_page(
+            # Create new page with stealth
+            context = browser.new_context(
                 user_agent=USER_AGENT,
-                viewport={'width': 1920, 'height': 1080}
+                viewport={'width': 1920, 'height': 1080},
+                locale='nl-BE',
+                timezone_id='Europe/Brussels',
+                permissions=['geolocation']
             )
+
+            page = context.new_page()
+
+            # Add stealth JavaScript to hide automation
+            page.add_init_script("""
+                // Override navigator.webdriver
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+
+                // Override chrome property
+                window.chrome = {
+                    runtime: {}
+                };
+
+                // Override plugins
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+
+                // Override permissions
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission }) :
+                        originalQuery(parameters)
+                );
+            """)
 
             # Set timeout
             page.set_default_timeout(self.timeout * 1000)
@@ -75,6 +108,14 @@ class PlaywrightScraper(BaseScraper):
 
             # Wait for network to be idle
             page.wait_for_load_state('networkidle', timeout=self.timeout * 1000)
+
+            # Wait a bit more for dynamic content (especially for SPAs)
+            try:
+                # Try to wait for common listing containers
+                page.wait_for_selector('article, .card, .item, .listing, [class*="card"]', timeout=5000)
+            except:
+                # If specific selectors don't appear, just wait 2 seconds
+                page.wait_for_timeout(2000)
 
             # Get HTML content
             html = page.content()
@@ -89,11 +130,20 @@ class PlaywrightScraper(BaseScraper):
         finally:
             # Clean up in THIS thread
             if page:
-                page.close()
+                try:
+                    page.close()
+                except:
+                    pass
             if browser:
-                browser.close()
+                try:
+                    browser.close()
+                except:
+                    pass
             if playwright:
-                playwright.stop()
+                try:
+                    playwright.stop()
+                except:
+                    pass
 
     def fetch(self, url: str) -> Optional[str]:
         """
