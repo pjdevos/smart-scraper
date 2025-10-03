@@ -156,14 +156,21 @@ class ClaudeClient:
         response = self._make_request(prompt, max_tokens=1024, temperature=0.0)
 
         if not response:
+            logger.error("No response from Claude API in find_selectors")
             return None
 
         # Parse response
         content = response["content"]
+        logger.debug(f"Claude response content (first 500 chars): {content[:500]}")
+
         selectors = self.parser.parse_json_response(content)
 
-        if not selectors or not self.parser.validate_selectors(selectors):
-            logger.error("Invalid selectors from Claude API")
+        if not selectors:
+            logger.error(f"Failed to parse selectors from response: {content[:200]}")
+            return None
+
+        if not self.parser.validate_selectors(selectors):
+            logger.error(f"Invalid selectors from Claude API: {selectors}")
             return None
 
         return {

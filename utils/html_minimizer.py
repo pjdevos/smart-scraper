@@ -162,11 +162,11 @@ class HTMLMinimizer:
     @staticmethod
     def _clean_html(html: str) -> str:
         """Final HTML cleanup"""
-        # Remove attributes that waste tokens
-        html = re.sub(r'\s+class="[^"]*"', '', html)
-        html = re.sub(r'\s+id="[^"]*"', '', html)
+        # Remove attributes that waste tokens (but KEEP class and id!)
         html = re.sub(r'\s+style="[^"]*"', '', html)
         html = re.sub(r'\s+data-[a-z-]+="[^"]*"', '', html)
+        html = re.sub(r'\s+aria-[a-z-]+="[^"]*"', '', html)
+        html = re.sub(r'\s+role="[^"]*"', '', html)
 
         # Collapse whitespace
         html = re.sub(r'\s+', ' ', html)
